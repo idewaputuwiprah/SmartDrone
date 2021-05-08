@@ -3,7 +3,6 @@ package com.its.smartdrone
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -13,21 +12,28 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.viewbinding.library.activity.viewBinding
+import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
 import com.its.smartdrone.databinding.ActivityHomeBinding
-import kotlinx.coroutines.runBlocking
-import java.io.IOException
-import java.util.*
+import kotlinx.coroutines.*
+import java.lang.StringBuilder
 import kotlin.collections.ArrayList
 
 class MainActivity : AppCompatActivity() {
-    private var connectThread: ConnectThread? = null
-    private val uuid = UUID.fromString("1e0ca4ea-299d-4335-93eb-27fcfe7fa848")
+    companion object {
+        const val TURN_ON_BT = "Turn On Bluetooth"
+        const val START_DISCOVERY = "Start Discovery"
+    }
     private val homeBinding: ActivityHomeBinding by viewBinding()
+    private var btConnect: BluetoothService.RequestConnection? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
     private val bluetoothEnable = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result->
-        if (result.resultCode == RESULT_OK) printMsg("Bluetooth Enabled")
+        if (result.resultCode == RESULT_OK) {
+            printMsg("Bluetooth Enabled")
+            if (bluetoothAdapter!!.isDiscovering) bluetoothAdapter?.cancelDiscovery()
+        }
         else printMsg("Failed to Enabled Bluetooth")
     }
     private val requestMultiplePermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -55,8 +61,10 @@ class MainActivity : AppCompatActivity() {
                     btDevices.forEach {
                         Log.d("DEBUG", "Device name: ${it.name}, device address: ${it.address}, device uuid: ${it.uuids}")
                         if (it.name == "raspberrypi") {
-                            connectThread = ConnectThread(it)
-                            connectThread?.start()
+                            btConnect = BluetoothService.RequestConnection(it, bluetoothAdapter!!)
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                btConnect?.connect()
+                            }
                         }
                     }
                 }
@@ -71,21 +79,43 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) requestBackgroundLocPermission
             .launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
 
-        checkBluetooth()
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+        registerBtStateListener()
         registerFilter()
 
         homeBinding.btnRequest.setOnClickListener {
-            btDevices.clear()
-            runBlocking {
-                requestMultiplePermissions.launch(
-                        arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                        )
-                )
-            }
-            bluetoothAdapter?.startDiscovery()
+            if ((it as Button).text == TURN_ON_BT) checkBluetooth()
+            else requestLocationPermission()
         }
+    }
+
+    private fun registerBtStateListener() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            while(true) {
+                bluetoothAdapter?.let { adapter->
+                    if (adapter.isEnabled) withContext(Dispatchers.Main) {
+                        homeBinding.btnRequest.text = StringBuilder(START_DISCOVERY)
+                    }
+                    else withContext(Dispatchers.Main) {
+                        homeBinding.btnRequest.text = StringBuilder(TURN_ON_BT)
+                    }
+                }
+                delay(500)
+            }
+        }
+    }
+
+    private fun requestLocationPermission() {
+        btDevices.clear()
+        runBlocking {
+            requestMultiplePermissions.launch(
+                    arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+            )
+        }
+        bluetoothAdapter?.startDiscovery()
     }
 
     private fun registerFilter() {
@@ -100,7 +130,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkBluetooth() {
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         if (bluetoothAdapter != null) {
             if (bluetoothAdapter?.isEnabled == false) bluetoothEnable.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
         }
@@ -113,35 +142,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        btConnect?.cancel()
         unregisterReceiver(btReceiver)
     }
-
-    private inner class ConnectThread(device: BluetoothDevice) : Thread() {
-
-        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            device.createRfcommSocketToServiceRecord(uuid)
-        }
-
-        override fun run() {
-            // Cancel discovery because it otherwise slows down the connection.
-            bluetoothAdapter?.cancelDiscovery()
-
-            mmSocket?.use { socket ->
-                socket.connect()
-
-                // The connection attempt succeeded. Perform work associated with
-                // the connection in a separate thread.
-//                manageMyConnectedSocket(socket)
-            }
-        }
-
-        fun cancel() {
-            try {
-                mmSocket?.close()
-            } catch (e: IOException) {
-                Log.d("DEBUG", "Could not close the client socket", e)
-            }
-        }
-    }
-
 }
