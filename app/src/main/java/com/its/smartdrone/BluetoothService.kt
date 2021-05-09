@@ -5,34 +5,36 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.util.Log
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.*
 
-object BluetoothService {
-    private const val TAG = "MY_APP_DEBUG_TAG"
-    const val MESSAGE_READ: Int = 0
-    const val MESSAGE_WRITE: Int = 1
-    const val MESSAGE_TOAST: Int = 2
+class BluetoothService(device: BluetoothDevice, private val adapter: BluetoothAdapter) {
     private val uuid = UUID.fromString("1e0ca4ea-299d-4335-93eb-27fcfe7fa848")
+    private val mmSocket: BluetoothSocket? = device.createRfcommSocketToServiceRecord(uuid)
+    private val mmInStream: InputStream? = mmSocket?.inputStream
+    private val mmOutStream: OutputStream? = mmSocket?.outputStream
+    private val mmBuffer: ByteArray = ByteArray(1024) // mmBuffer store for the stream
 
-    class RequestConnection(private val device: BluetoothDevice, private val adapter: BluetoothAdapter) {
-        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            device.createRfcommSocketToServiceRecord(uuid)
-        }
+    fun isConnected(): Boolean? = mmSocket?.isConnected
 
-        fun connect() {
-            adapter.cancelDiscovery()
+    fun connect() {
+        adapter.cancelDiscovery()
+        mmSocket?.connect()
+    }
 
-            mmSocket?.use { socket ->
-                socket.connect()
-            }
-        }
+    fun readMsg(): Int? = mmInStream?.read(mmBuffer)
 
-        fun cancel() {
-            try {
-                mmSocket?.close()
-            } catch (e: IOException) {
-                Log.d("DEBUG", "Could not close the client socket", e)
-            }
+    fun writeMsg(msg: String) {
+        mmOutStream?.write(msg.toByteArray(Charsets.UTF_8))
+        disconnect()
+    }
+
+    fun disconnect() {
+        try {
+            mmSocket?.close()
+        } catch (e: IOException) {
+            Log.d("DEBUG", "Could not close the client socket", e)
         }
     }
 }

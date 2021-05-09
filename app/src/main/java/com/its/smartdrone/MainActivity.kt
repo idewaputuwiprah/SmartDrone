@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.viewbinding.library.activity.viewBinding
 import android.widget.Button
 import android.widget.Toast
@@ -27,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         const val START_DISCOVERY = "Start Discovery"
     }
     private val homeBinding: ActivityHomeBinding by viewBinding()
-    private var btConnect: BluetoothService.RequestConnection? = null
+    private var btService: BluetoothService? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
     private val bluetoothEnable = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result->
         if (result.resultCode == RESULT_OK) {
@@ -61,9 +62,9 @@ class MainActivity : AppCompatActivity() {
                     btDevices.forEach {
                         Log.d("DEBUG", "Device name: ${it.name}, device address: ${it.address}, device uuid: ${it.uuids}")
                         if (it.name == "raspberrypi") {
-                            btConnect = BluetoothService.RequestConnection(it, bluetoothAdapter!!)
+                            btService = BluetoothService(it, bluetoothAdapter!!)
                             lifecycleScope.launch(Dispatchers.IO) {
-                                btConnect?.connect()
+                                btService?.connect()
                             }
                         }
                     }
@@ -87,6 +88,11 @@ class MainActivity : AppCompatActivity() {
             if ((it as Button).text == TURN_ON_BT) checkBluetooth()
             else requestLocationPermission()
         }
+        homeBinding.btnSend.setOnClickListener {
+            lifecycleScope.launch(Dispatchers.IO) {
+                btService?.writeMsg("Hai")
+            }
+        }
     }
 
     private fun registerBtStateListener() {
@@ -96,11 +102,21 @@ class MainActivity : AppCompatActivity() {
                     if (adapter.isEnabled) withContext(Dispatchers.Main) {
                         homeBinding.btnRequest.text = StringBuilder(START_DISCOVERY)
                     }
-                    else withContext(Dispatchers.Main) {
-                        homeBinding.btnRequest.text = StringBuilder(TURN_ON_BT)
+                    else {
+                        withContext(Dispatchers.Main) {
+                            homeBinding.btnRequest.text = StringBuilder(TURN_ON_BT)
+                        }
                     }
                 }
                 delay(500)
+            }
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            while (true) {
+                if (btService?.isConnected() == null) withContext(Dispatchers.Main) {homeBinding.btnSend.visibility = View.GONE}
+                else {
+                    withContext(Dispatchers.Main) {homeBinding.btnSend.visibility = if (btService!!.isConnected()!!) View.VISIBLE else View.GONE}
+                }
             }
         }
     }
@@ -142,7 +158,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        btConnect?.cancel()
+        btService?.disconnect()
         unregisterReceiver(btReceiver)
     }
 }
