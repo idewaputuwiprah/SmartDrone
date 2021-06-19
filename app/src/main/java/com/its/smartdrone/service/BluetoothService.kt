@@ -1,4 +1,4 @@
-package com.its.smartdrone
+package com.its.smartdrone.service
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -27,7 +27,7 @@ class BluetoothService(device: BluetoothDevice, private val adapter: BluetoothAd
 
     fun writeMsg(msg: String) {
         mmOutStream?.write(msg.toByteArray(Charsets.UTF_8))
-        disconnect()
+//        disconnect()
     }
 
     fun disconnect() {

@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">SmartDrone</string>
+    <string name="list_devices_title">List Devices</string>
+    <string name="list_devices_subtitle">Press to connect</string>
+    <string name="welcome">Welcome</string>
+    <string name="set_destination">Set destination</string>
+    <string name="dji_tello">Dji Tello</string>
+    <string name="find_devices">Find devices</string>
+    <string name="takeoff">Takeoff</string>
+    <string name="land">Land</string>
+    <string name="camera">Camera</string>
 </resources>
