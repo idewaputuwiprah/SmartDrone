@@ -27,15 +27,6 @@ class LocationService(private val locationManager: LocationManager, private val 
             if (lastKnownLocation != null)
                 location = lastKnownLocation
         }
-//        if (location == null) {
-//            if (hasNetwork) {
-//                Log.d("DEBUG_GPS", "Has Network")
-//                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 500, 0F) { loc -> location = loc }
-//                val lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-//                if (lastKnownLocation != null)
-//                    location = lastKnownLocation
-//            }
-//        }
         Log.d("DEBUG_GPS", "$location")
     }
 

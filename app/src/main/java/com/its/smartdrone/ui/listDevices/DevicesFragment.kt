@@ -31,6 +31,7 @@ class DevicesFragment : Fragment() {
             adapter.setOnClickListener(object: DeviceCallback{
                 override fun onClick(data: BluetoothDevice) {
                     mainActivity.connect(data)
+                    mainActivity.mFragmentManager.popBackStackImmediate(null, 0)
                     mainActivity.mFragmentManager.commit {
                         replace(R.id.fragment_container, HomeFragment(), HomeFragment::class.java.simpleName)
                     }

@@ -66,17 +66,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 BluetoothAdapter.ACTION_DISCOVERY_STARTED -> printMsg("start scanning...")
                 BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-//                    _btDevices.value = devices
                     printMsg("Found ${btDevices.value?.size} device")
-//                    devices.forEach {
-//                        Log.d("DEBUG", "Device name: ${it.name}, device address: ${it.address}, device uuid: ${it.uuids}")
-//                        if (it.name == "raspberrypi") {
-//                            btService = BluetoothService(it, bluetoothAdapter!!)
-//                            lifecycleScope.launch(Dispatchers.IO) {
-//                                btService?.connect()
-//                            }
-//                        }
-//                    }
                 }
             }
         }
@@ -105,21 +95,9 @@ class MainActivity : AppCompatActivity() {
                 add(R.id.fragment_container, HomeFragment(), HomeFragment::class.java.simpleName)
             }
         }
-
-//        homeBinding.btnRequest.setOnClickListener {
-//            if ((it as Button).text == TURN_ON_BT) checkBluetooth()
-//            else requestLocationPermission()
-//        }
-//        homeBinding.btnSend.setOnClickListener {
-//            lifecycleScope.launch(Dispatchers.IO) {
-//                btService?.writeMsg("Hai")
-//            }
-//        }
     }
 
     fun getLocation(location: String) {
-//        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-//        val locationService = LocationService(locationManager, this.applicationContext)
         when(location) {
             DESTINATION -> {
                 _destination.value = locationService.getLocation()
@@ -163,7 +141,7 @@ class MainActivity : AppCompatActivity() {
         else printMsg("Device doesn't have bluetooth")
     }
 
-    private fun printMsg(msg: String) {
+    fun printMsg(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 
@@ -178,6 +156,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             btService?.connect()
         }
+    }
+
+    fun disconnect() {
+        btService?.disconnect()
     }
 
     override fun onDestroy() {

@@ -23,11 +23,8 @@ class BluetoothService(device: BluetoothDevice, private val adapter: BluetoothAd
         mmSocket?.connect()
     }
 
-    fun readMsg(): Int? = mmInStream?.read(mmBuffer)
-
     fun writeMsg(msg: String) {
         mmOutStream?.write(msg.toByteArray(Charsets.UTF_8))
-//        disconnect()
     }
 
     fun disconnect() {

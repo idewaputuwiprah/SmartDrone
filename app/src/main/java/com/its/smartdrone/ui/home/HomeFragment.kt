@@ -20,6 +20,7 @@ import java.lang.StringBuilder
 
 class HomeFragment : Fragment() {
     companion object {
+        const val DISCONNECT_DEVICE = "Disconnect device"
         const val TURN_ON_BT = "Turn on bluetooth"
         const val START_DISCOVERY = "Find devices"
         const val HOME_LOCATION = "home"
@@ -44,12 +45,6 @@ class HomeFragment : Fragment() {
             mainActivity.registerFilter()
             registerObserver()
 
-//            fragmentHomeBinding.btnRequest.setOnClickListener {
-//                if ((it as Button).text == TURN_ON_BT) mainActivity.checkBluetooth()
-//                else mainActivity.mFragmentManager.commit {
-//                    replace(R.id.fragment_container, DevicesFragment(), DevicesFragment::class.java.simpleName)
-//                }
-//            }
             fragmentHomeBinding.apply {
                 btnRenewHomeLocation.setOnClickListener {
                     mainActivity.getLocation(HOME_LOCATION)
@@ -59,16 +54,19 @@ class HomeFragment : Fragment() {
                 }
                 llFindDevices.setOnClickListener {
                     tvFindDevices.let {
-                        if (it.text == TURN_ON_BT) mainActivity.checkBluetooth()
-                        else mainActivity.mFragmentManager.commit {
-                            replace(R.id.fragment_container, DevicesFragment(), DevicesFragment::class.java.simpleName)
+                        when(it.text) {
+                            TURN_ON_BT -> mainActivity.checkBluetooth()
+                            START_DISCOVERY -> mainActivity.mFragmentManager.commit {
+                                replace(R.id.fragment_container, DevicesFragment(), DevicesFragment::class.java.simpleName)
+                                addToBackStack(null)
+                            }
+                            DISCONNECT_DEVICE -> mainActivity.disconnect()
                         }
                     }
                 }
                 llTakeoff.setOnClickListener {
                     val btService = mainActivity.getBluetoothService()
                     if (destination != null && btService?.isConnected() != null) {
-//                        val dest = destination as String
                         val msg = "$home,$destination"
                         if (btService.isConnected() == true) {
                             lifecycleScope.launch(Dispatchers.IO) {
@@ -101,9 +99,19 @@ class HomeFragment : Fragment() {
                     }
                 }
                 llCamera.setOnClickListener {
-                    TODO("not implemented yet")
+                    destination?.let {
+                        mainActivity.printMsg(it)
+                    }
                 }
-                tvDestination.visibility = View.GONE
+                val dest = mainActivity.destination.value
+                destination = if (dest == null) null else "${dest.latitude}, ${dest.longitude}"
+                tvDestination.apply {
+                    visibility = if (dest == null) View.GONE else View.VISIBLE
+                    text = if (dest == null) StringBuilder("") else StringBuilder("${dest.latitude}, ${dest.longitude}")
+                }
+                val start = mainActivity.home.value
+                home = if (start == null) null else "${start.latitude}, ${start.longitude}"
+                tvHomeLocation.text = if (start == null) StringBuilder("Set home location") else StringBuilder("${start.latitude}, ${start.longitude}")
             }
         }
     }
@@ -138,19 +146,16 @@ class HomeFragment : Fragment() {
             while(true) {
                 bluetoothAdapter?.let { adapter->
                     if (adapter.isEnabled) withContext(Dispatchers.Main) {
-//                        fragmentHomeBinding.btnRequest.text = StringBuilder(START_DISCOVERY)
-                        fragmentHomeBinding.apply {
-                            ivFindDevices.setImageDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.ic_search))
-                            tvFindDevices.text = StringBuilder(START_DISCOVERY)
+                        if (btService?.isConnected() != null && btService.isConnected()!!) {
+                            setButton(R.drawable.ic_disconnect, DISCONNECT_DEVICE, R.color.red)
+                        }
+                        else {
+                            setButton(R.drawable.ic_search, START_DISCOVERY, R.color.black)
                         }
                     }
                     else {
                         withContext(Dispatchers.Main) {
-//                            fragmentHomeBinding.btnRequest.text = StringBuilder(TURN_ON_BT)
-                            fragmentHomeBinding.apply {
-                                ivFindDevices.setImageDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.ic_bluetooth))
-                                tvFindDevices.text = StringBuilder(TURN_ON_BT)
-                            }
+                            setButton(R.drawable.ic_bluetooth, TURN_ON_BT, R.color.black)
                         }
                     }
                 }
@@ -167,7 +172,6 @@ class HomeFragment : Fragment() {
                 }
                 else {
                     withContext(Dispatchers.Main) {
-//                        fragmentHomeBinding.btnSend.visibility = if (btService.isConnected()!!) View.VISIBLE else View.GONE}
                         fragmentHomeBinding.tvStatus.apply {
                             if (btService.isConnected()!!) {
                                 text = StringBuilder("connected")
@@ -181,6 +185,14 @@ class HomeFragment : Fragment() {
                     }
                 }
             }
+        }
+    }
+
+    private fun setButton(icon: Int, txt: String, color: Int) {
+        fragmentHomeBinding.apply {
+            ivFindDevices.setImageDrawable(ContextCompat.getDrawable(requireContext(), icon))
+            tvFindDevices.text = StringBuilder(txt)
+            tvFindDevices.setTextColor(ContextCompat.getColor(requireContext(), color))
         }
     }
 }
